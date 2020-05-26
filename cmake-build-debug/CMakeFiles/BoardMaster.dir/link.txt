@@ -1,0 +1,1 @@
+/Library/Developer/CommandLineTools/usr/bin/c++  -g -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX10.15.sdk -Wl,-search_paths_first -Wl,-headerpad_max_install_names  CMakeFiles/BoardMaster.dir/main.cpp.o CMakeFiles/BoardMaster.dir/client.cpp.o CMakeFiles/BoardMaster.dir/server.cpp.o CMakeFiles/BoardMaster.dir/BoardMasterGame.cpp.o  -o BoardMaster 
