@@ -11,6 +11,7 @@
 #include <string.h>
 #include <iostream>
 #include "assert.h"
+#include <pthread.h>
 #include "BoardMasterGame.h"
 
 using namespace std;
@@ -320,6 +321,33 @@ bool handleRPC(int new_socket, RawKeyValueString * buff, BoardMasterGame & game)
     }
 }
 
+void * session(void * socket){
+    int new_socket = *(int *) socket;
+    char buffer [1024];
+    bool status = false;
+
+    //generate BoardMasterGame object, read buffer and use for connect RPC (must come first!)
+    BoardMasterGame game;
+    read(new_socket, buffer, 1024);
+    RawKeyValueString * buff = new RawKeyValueString(buffer);
+
+    status = connectRPC(new_socket, buff);  //true if successful connection, false if invalid info
+
+    delete buff;
+
+    while(status == true){
+        read(new_socket, buffer, 1024);
+        RawKeyValueString * buff = new RawKeyValueString(buffer);
+        status = handleRPC(new_socket, buff, game);
+        delete buff;
+    }
+    const char * disconnectMessage = "You have been disconnected.";
+    send(new_socket, disconnectMessage, strlen(disconnectMessage), 0);
+    close(new_socket);
+    return 0;
+}
+
+
 /**
  * Connect and turn on the server, listen from client for
  * RPCs. An endless loop to not kill the server side for more
@@ -332,35 +360,15 @@ int main(int argc, char const *argv[]) {
     setup(address, server_fd);
     int addrlen = sizeof(address);
 
-    //establish buffer and status for handling when to disconnect
-    char buffer[1024] = { 0 };
-    int status;
 
     while(true){
-        printf("Waiting for client\n");
+        printf("Waiting for a new client\n");
         if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0){
             perror("Accepting denied");
             exit(EXIT_FAILURE);
         }
         printf("Accepted\n");
-
-        //generate BoardMasterGame object, read buffer and use for connect RPC (must come first!)
-        BoardMasterGame game;
-        read(new_socket, buffer, 1024);
-        RawKeyValueString * buff = new RawKeyValueString(buffer);
-
-        status = connectRPC(new_socket, buff);  //true if successful connection, false if invalid info
-
-        delete buff;
-
-        while(status == true){
-            read(new_socket, buffer, 1024);
-            RawKeyValueString * buff = new RawKeyValueString(buffer);
-            status = handleRPC(new_socket, buff, game);
-            delete buff;
-        }
-        const char * disconnectMessage = "You have been disconnected.";
-        send(new_socket, disconnectMessage, strlen(disconnectMessage), 0);
-        close(new_socket);
+        pthread_t ses;
+        pthread_create(&ses, NULL, session, &new_socket);
     }
 }
