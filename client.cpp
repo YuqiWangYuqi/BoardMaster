@@ -76,12 +76,14 @@ int connectRPC(int & sock)
         error = "Invalid server response";
     }
     std::cout << "status = " << buffer << "; error = " << error << "; valRead = "  << valRead << std::endl;
+
     if(strcmp(buffer, "0") != 0){
         std::cout << "Disconnecting from server. Please try again." << std::endl;
         exit(EXIT_FAILURE);
     }
     std::cout << "Welcome to BoardMaster, " << login[0] << ". what can we do for you?\n";
     return 0;
+
 }
 
 int disconnectRPC(int & sock)
