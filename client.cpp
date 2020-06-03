@@ -122,22 +122,6 @@ int disconnectRPC(int & sock)
 }
 
 /**
- * Method to determine if the game is won from the character buffer given back by the server. Intended for use
- * only with the guessRPC function to read after a guess.
- * @param buffer the character array returned by the server
- * @return true if the game has been won from the game, false if not
- */
-bool isGameWon(char buffer []){
-   const char * buffPter = buffer;
-   return (strcmp(buffPter, "Perfect guess! You've won the game!\n") == 0);
-}
-
-bool wasGuessValid(char buffer []){
-    const char * buffPter = buffer;
-    return(strcmp(buffPter, "Invalid guess. All guesses must be 4 digits from 1 to 5.\n") == 0);
-}
-
-/**
  * Method used to start a BoardMaster game. Does not require any user input once this has started
  * @param sock the socket to send the game start command to
  * @return 0 on success
@@ -162,7 +146,7 @@ int startGameRPC(int& sock)
  * Method used to make a guess to the server on a running BoardMaster game. Will ask the user for input on their guess.
  * The guess will be sent and results will be printed back.
  * @param sock the socket to send the information to
- * @return 0 on a finished guess with no win, 1 on a finished guess with a win, -1 if guess was invalid (doesn't count)
+ * @return 0 on success
  */
 int guessRPC(int& sock)
 {
@@ -171,24 +155,31 @@ int guessRPC(int& sock)
     int valRead = 0;
     std::string guess = "rpc=guess;code=";
     std::string code;
-    std::cout << "Please enter your guess: " << std::endl;
+    std::cout << "Please enter your guess: ";
     std::cin >> code;
+
+    // if the guess is quit (case insensitive), exit the game
+    for(int i = 0; i < (int) code.length(); i++){
+        code[i] = std::toupper(code[i]);
+    }
+    if (code == "QUIT") {
+        std::cout << "You have exited the game.\n";
+        return 1;
+    }
+
     guess += (code + ";");
     char buffer[1024] = {0};
     send(sock, guess.c_str(), strlen(guess.c_str()) , 0);
     std::cout << "Guess sent\n";
     valRead = read(sock, buffer, 1024);
     printf(buffer);
-
-    if(isGameWon(buffer)){  //if the game was won on the guess, signal so
-        return 1;
-    }
-
-    if(wasGuessValid(buffer)){  //if the guess was invalid, signal so
-        return -1;
-    }
     std::cout << valRead << std::endl;
 
+    // return 1 if solved, else return 0
+    if (strcmp(buffer, "Perfect guess! You've won the game!\n") == 0)
+    {
+        return 1;
+    }
     return 0;
 }
 
@@ -227,7 +218,7 @@ bool RPCSelector(int sock)
     std::cin >> input;
 
     //sets input to uppercase regardless of user input
-    for(int i = 0; i < input.length(); i++){
+    for(int i = 0; i < (int) input.length(); i++){
         input[i] = std::toupper(input[i]);
     }
 
@@ -260,11 +251,9 @@ bool RPCSelector(int sock)
         startGameRPC(sock);
         for(int i = 0; i < 8; i++)
         {
-            int state = guessRPC(sock); //find outcome of the guess to determine next step
-            if(state == 1){
-                break;  //game has been won
-            } else if(state == -1){
-                i--;    //don't count the guess
+            if (guessRPC(sock) == 1) 
+            {
+                break;
             }
         }
         return true;
