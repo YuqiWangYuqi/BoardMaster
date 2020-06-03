@@ -208,11 +208,11 @@ bool RPCSelector(int sock)
     }
 
     if (input == "HELP") {
-        std::cout << "RPCs:" << std::endl;
+        std::cout << "RPCs (case insensitive):" << std::endl;
         // std::cout << "'Connect': Connects to the server." << std::endl;
-        std::cout << "'Disconnect': Disconnects from the server." << std::endl;
-        std::cout << "'Records': Displays total wins/losses on the server." << std::endl;
-        std::cout << "'Start': Start a new game." << std::endl;
+        std::cout << "'DISCONNECT': Disconnects from the server." << std::endl;
+        std::cout << "'RECORDS': Displays total wins/losses on the server." << std::endl;
+        std::cout << "'START': Start a new game." << std::endl;
         return true;
     }
         /*else if (input == "Connect")
@@ -220,18 +220,18 @@ bool RPCSelector(int sock)
             connectRPC(sock);
             return true;
         }*/
-    else if (input == "Disconnect")
+    else if (input == "DISCONNECT")
     {
         disconnectRPC(sock);
         close(sock);
         return false;
     }
-    else if (input == "Records")
+    else if (input == "RECORDS")
     {
         recordRPC(sock);
         return true;
     }
-    else if (input == "Start")
+    else if (input == "START")
     {
         startGameRPC(sock);
         for(int i = 0; i < 8; i++)
