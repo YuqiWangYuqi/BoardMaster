@@ -104,10 +104,10 @@ int connectRPC(int & sock)
     // Print out the server response and relevant notification to the user
     std::cout << "status = " << buffer << "; error = " << error << "; valRead = "  << valRead << std::endl;
     if(strcmp(buffer, "0") != 0){
-        std::cout << "Disconnecting from server. Please try again." << std::endl;
+        std::cout << "\nDisconnecting from server. Please try again." << std::endl;
         exit(EXIT_FAILURE);
     }
-    std::cout << "Welcome to BoardMaster, " << login[0] << ". what can we do for you?\n";
+    std::cout << "\nWelcome to BoardMaster, " << login[0] << ". what can we do for you?\n";
     return 0;
 }
 
@@ -124,7 +124,7 @@ int disconnectRPC(int & sock)
     char disconnect[24] = "rpc=disconnect;";
     char buffer[1024] = {0};
     send(sock, disconnect, strlen(disconnect), 0);
-    std::cout << "Disconnect sent\n";
+    std::cout << "Disconnect sent\n" << std::endl;
     read(sock, buffer, 1024);
     printf(buffer);
     return 0;
@@ -142,7 +142,7 @@ int startGameRPC(int& sock)
     char start[24] = "rpc=start;";
     char buffer[1024] = {0};
     send(sock, start, strlen(start) , 0);
-    std::cout << "Start game sent\n";
+    std::cout << "Start game sent\n" << std::endl;
     read(sock, buffer, 1024);
     printf(buffer);
     return 0;
@@ -160,7 +160,7 @@ int guessRPC(int& sock)
     //output format="Perfect matches:<number> Matches out of position: <number> Guesses remaining: <number>
     std::string guess = "rpc=guess;code=";
     std::string code;
-    std::cout << "Please enter your guess: ";
+    std::cout << "\nPlease enter your guess: ";
     std::cin >> code;
 
     // if the guess is quit (case insensitive), exit the game
@@ -200,7 +200,7 @@ int recordRPC(int& sock)
     char buffer[1024] = {0};
     const char * record = "rpc=record;";
     send(sock, record, strlen(record), 0);
-    std::cout << "Record request sent\n";
+    std::cout << "Record request sent\n" << std::endl;
     read(sock, buffer, 1024);
     printf(buffer);
     return 0;
@@ -214,7 +214,7 @@ int recordRPC(int& sock)
  */
 bool RPCSelector(int sock)
 {
-    std::cout << "Please enter the desired RPC. Type 'HELP' to show options." << std::endl;
+    std::cout << "\nPlease enter the desired RPC. Type 'HELP' to show options." << std::endl;
     std::string input;
     std::cin >> input;
 
@@ -225,7 +225,7 @@ bool RPCSelector(int sock)
 
     // Displays the available commands when 'HELP' is typed
     if (input == "HELP") {
-        std::cout << "RPCs (case insensitive):" << std::endl;
+        std::cout << "\nRPCs (case insensitive):" << std::endl;
         std::cout << "'START': Start a new game. You can type 'QUIT' to exit during a game." << std::endl;
         std::cout << "'RULES': Display the rules for the game." << std::endl;
         std::cout << "'RECORDS': Displays total wins/losses on the server." << std::endl;
@@ -235,7 +235,7 @@ bool RPCSelector(int sock)
     // Displays the rules for the game when 'RULES' is typed
     else if (input == "RULES") 
     {
-        std::cout << "The server will randomly generate a 4 digit code using values between 1-5." << std::endl;
+        std::cout << "\nThe server will randomly generate a 4 digit code using values between 1-5." << std::endl;
         std::cout << "You have 8 guesses to correctly guess the code. After each guess, the" << std::endl;
         std::cout << "server will tell you how many perfect matches (correct number in correct slot)" << std::endl;
         std::cout << "and matches out of position (correct number in incorrect slot) there are." << std::endl;
@@ -271,7 +271,7 @@ bool RPCSelector(int sock)
     // The input was not recognized
     else
     {
-        std::cout << "Invalid input. Please enter a RPC or 'HELP'." << std::endl;
+        std::cout << "\nInvalid input. Please enter a RPC or 'HELP'.\n" << std::endl;
         return true;
     }
 }
