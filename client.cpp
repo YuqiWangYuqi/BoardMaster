@@ -43,7 +43,7 @@ int connectToServer(int & sock)
 /**
  * Method used for connection to the server. Will always be called on run of the program, but not afterwards
  * @param sock the socket being connected to
- * @return 0 on completion of the program
+ * @return 0 on completion of the program successfully logging in, -1 if connection failed
  */
 int connectRPC(int & sock)
 {
@@ -56,7 +56,12 @@ int connectRPC(int & sock)
     // error      ( This will be to blank or an error message)
     // output format="status=<error status>;error=<error or blank>
 
-    connectToServer(sock);
+    int connected = connectToServer(sock);
+
+    if(connected == -1){
+        return -1;  //early exit on connection failure
+    }
+
     int valRead = 0;
     // [0] = username, [1] = password, [2] = concatenated input
     char login[3][100];
@@ -150,6 +155,7 @@ int guessRPC(int& sock)
     int valRead = 0;
     std::string guess = "rpc=guess;code=";
     std::string code;
+    std::cout << "Please enter your guess: ";
     std::cin >> code;
     guess += (code + ";");
     char buffer[1024] = {0};
@@ -252,7 +258,12 @@ int main()
     // boolean for whether to continue asking for input
     bool cont = true;
 
-    connectRPC(sock);
+    int connected = connectRPC(sock);
+
+    if(connected == -1){
+        cont = false;   //failed connection (likely server down), so terminate now
+    }
+
     while (cont)
     {
         cont = RPCSelector(sock);
