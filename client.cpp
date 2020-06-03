@@ -10,6 +10,11 @@
 
 #define PORT 12121
 
+/**
+ * Method used for the initial server connection. Is called in the first connect RPC
+ * @param sock the socket to be connected to
+ * @return 0 on success, -1 on failure
+ */
 int connectToServer(int & sock)
 {
     char const* host = "127.0.0.1";
@@ -35,6 +40,11 @@ int connectToServer(int & sock)
     return 0;
 }
 
+/**
+ * Method used for connection to the server. Will always be called on run of the program, but not afterwards
+ * @param sock the socket being connected to
+ * @return 0 on completion of the program
+ */
 int connectRPC(int & sock)
 {
     // Input Arguments are:
@@ -85,6 +95,12 @@ int connectRPC(int & sock)
     return 0;
 }
 
+/**
+ * Method used to disconnect from the server. Doing so will close this program and indicate to the server that the
+ * socket being used may also be closed.
+ * @param sock the socket to close
+ * @return 0 on success
+ */
 int disconnectRPC(int & sock)
 {
     // input format="rpc=disconnect;"
@@ -100,6 +116,11 @@ int disconnectRPC(int & sock)
     return 0;
 }
 
+/**
+ * Method used to start a BoardMaster game. Does not require any user input once this has started
+ * @param sock the socket to send the game start command to
+ * @return 0 on success
+ */
 int startGameRPC(int& sock)
 {
     //input format="rpc=start;'
@@ -116,6 +137,12 @@ int startGameRPC(int& sock)
 
 }
 
+/**
+ * Method used to make a guess to the server on a running BoardMaster game. Will ask the user for input on their guess.
+ * The guess will be sent and results will be printed back.
+ * @param sock the socket to send the information to
+ * @return 0 on success
+ */
 int guessRPC(int& sock)
 {
     //input format="rpc=guess;code =<input guess>"
@@ -135,6 +162,11 @@ int guessRPC(int& sock)
     return 0;
 }
 
+/**
+ * Method used to get a record of wins and losses from the server. Will send the command and print the results.
+ * @param sock the socket to send the request to
+ * @return 0 on success
+ */
 int recordRPC(int& sock)
 {
     //input format="rpc=record"
@@ -151,6 +183,12 @@ int recordRPC(int& sock)
     return 0;
 }
 
+/**
+ * Method for handling which RPCs to send to the server. Will ask for user input and proceed accordingly. If a user
+ * types 'help' instead, a printout of valid commands will be displayed
+ * @param sock the socket that will be passed to the necessary RPC to work with
+ * @return true if a connection should stay, false if a connection is terminated (happens only on disconnect)
+ */
 bool RPCSelector(int sock)
 {
     // returns true for all commands except disconnect
@@ -203,6 +241,11 @@ bool RPCSelector(int sock)
     }
 }
 
+/**
+ * Main method that runs the client-side program. Will continuously make calls to the RPCSelector function
+ * until a disconnect request is sent.
+ * @return 0 on completion of the program
+ */
 int main()
 {
     int sock = 0;
