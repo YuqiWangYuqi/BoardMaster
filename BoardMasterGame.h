@@ -2,8 +2,8 @@
 // Created by Dom on 5/19/2020.
 //
 
-#ifndef BOARDMASTER_BOARDMASTERGAME_H
-#define BOARDMASTER_BOARDMASTERGAME_H
+#ifndef MILESTONE1_BOARDMASTERGAME_H
+#define MILESTONE1_BOARDMASTERGAME_H
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,8 +34,8 @@ public:
     int getMovesLeft();
     bool isGameWon();
     bool isGameLost();
-    bool getTotalGamesWon();
-    bool getTotalGamesLost();
+    int getTotalGamesWon();
+    int getTotalGamesLost();
 
 };
 
