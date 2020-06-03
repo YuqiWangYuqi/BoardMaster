@@ -20,11 +20,15 @@ int connectToServer(int & sock)
     char const* host = "127.0.0.1";
     struct sockaddr_in serv_addr;
     serv_addr.sin_family = AF_INET;
+
+    // Create socket
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
         printf("\n Socket creation error \n");
         return -1;
     }
+    
+    // Interpret server address
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(PORT);
     if (inet_pton(AF_INET, host, &serv_addr.sin_addr) <= 0)
@@ -32,6 +36,8 @@ int connectToServer(int & sock)
         printf("\nInvalid address/ Address not supported \n");
         return -1;
     }
+
+    // Connect to server
     if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
     {
         printf("\nConnection Failed \n");
@@ -57,7 +63,6 @@ int connectRPC(int & sock)
     // output format="status=<error status>;error=<error or blank>
 
     int connected = connectToServer(sock);
-
     if(connected == -1){
         return -1;  //early exit on connection failure
     }
@@ -66,6 +71,7 @@ int connectRPC(int & sock)
     // [0] = username, [1] = password, [2] = concatenated input
     char login[3][100];
 
+    // Assembles the RPC with login information
     std::cout << "Please enter your username:\n";
     std::cin >> login[0];
     std::cout << "Please enter your password:\n";
@@ -76,10 +82,13 @@ int connectRPC(int & sock)
     strcat(login[2], login[1]);
     strcat(login[2], ";");
 
+    // Sends the RPC to the server
     char buffer[1024] = {0};
     send(sock, login[2], strlen(login[2]), 0);
     std::cout << "Login information sent\n";
 
+    // Interpret the server response. 0 = no error, -1 = invalid login
+    // Anything else = invalid server response
     valRead = read(sock, buffer, 1024);
     std::string error;
     if (strcmp(buffer, "0") == 0) {
@@ -91,6 +100,8 @@ int connectRPC(int & sock)
     else {
         error = "Invalid server response";
     }
+
+    // Print out the server response and relevant notification to the user
     std::cout << "status = " << buffer << "; error = " << error << "; valRead = "  << valRead << std::endl;
     if(strcmp(buffer, "0") != 0){
         std::cout << "Disconnecting from server. Please try again." << std::endl;
@@ -110,14 +121,12 @@ int disconnectRPC(int & sock)
 {
     // input format="rpc=disconnect;"
     // output format="status=<error status>; error=<error or blank>;
-    int valRead = 0;
     char disconnect[24] = "rpc=disconnect;";
     char buffer[1024] = {0};
     send(sock, disconnect, strlen(disconnect), 0);
     std::cout << "Disconnect sent\n";
-
-    valRead = read(sock, buffer, 1024);
-    printf("ValRead=%d buffer=%s\n", valRead, buffer);
+    read(sock, buffer, 1024);
+    printf(buffer);
     return 0;
 }
 
@@ -130,16 +139,13 @@ int startGameRPC(int& sock)
 {
     //input format="rpc=start;'
     //output format="New game started" or error
-    int valRead = 0;
     char start[24] = "rpc=start;";
     char buffer[1024] = {0};
     send(sock, start, strlen(start) , 0);
     std::cout << "Start game sent\n";
-    valRead = read(sock, buffer, 1024);
+    read(sock, buffer, 1024);
     printf(buffer);
-    std::cout << valRead << std::endl;
     return 0;
-
 }
 
 /**
@@ -152,7 +158,6 @@ int guessRPC(int& sock)
 {
     //input format="rpc=guess;code =<input guess>"
     //output format="Perfect matches:<number> Matches out of position: <number> Guesses remaining: <number>
-    int valRead = 0;
     std::string guess = "rpc=guess;code=";
     std::string code;
     std::cout << "Please enter your guess: ";
@@ -167,15 +172,15 @@ int guessRPC(int& sock)
         return 1;
     }
 
+    // assemble the guess RPC and send it to the server 
     guess += (code + ";");
     char buffer[1024] = {0};
     send(sock, guess.c_str(), strlen(guess.c_str()) , 0);
     std::cout << "Guess sent\n";
-    valRead = read(sock, buffer, 1024);
+    read(sock, buffer, 1024);
     printf(buffer);
-    std::cout << valRead << std::endl;
 
-    // return 1 if solved, else return 0
+    // return 1 if solved, else return 0 (determines if the user gets more guesses)
     if (strcmp(buffer, "Perfect guess! You've won the game!\n") == 0)
     {
         return 1;
@@ -192,15 +197,12 @@ int recordRPC(int& sock)
 {
     //input format="rpc=record"
     //output format="Total wins:<number> Total losses: <number>"
-    int valRead = 0;
     char buffer[1024] = {0};
     const char * record = "rpc=record;";
     send(sock, record, strlen(record), 0);
     std::cout << "Record request sent\n";
-    valRead = read(sock, buffer, 1024);
+    read(sock, buffer, 1024);
     printf(buffer);
-    std::cout << valRead << std::endl;
-
     return 0;
 }
 
@@ -212,9 +214,8 @@ int recordRPC(int& sock)
  */
 bool RPCSelector(int sock)
 {
-    // returns true for all commands except disconnect
-    std::string input;
     std::cout << "Please enter the desired RPC. Type 'HELP' to show options." << std::endl;
+    std::string input;
     std::cin >> input;
 
     //sets input to uppercase regardless of user input
@@ -222,30 +223,39 @@ bool RPCSelector(int sock)
         input[i] = std::toupper(input[i]);
     }
 
+    // Displays the available commands when 'HELP' is typed
     if (input == "HELP") {
         std::cout << "RPCs (case insensitive):" << std::endl;
-        // std::cout << "'Connect': Connects to the server." << std::endl;
-        std::cout << "'DISCONNECT': Disconnects from the server." << std::endl;
+        std::cout << "'START': Start a new game. You can type 'QUIT' to exit during a game." << std::endl;
+        std::cout << "'RULES': Display the rules for the game." << std::endl;
         std::cout << "'RECORDS': Displays total wins/losses on the server." << std::endl;
-        std::cout << "'START': Start a new game." << std::endl;
+        std::cout << "'DISCONNECT': Disconnects from the server." << std::endl;
         return true;
     }
-        /*else if (input == "Connect")
-        {
-            connectRPC(sock);
-            return true;
-        }*/
+    // Displays the rules for the game when 'RULES' is typed
+    else if (input == "RULES") 
+    {
+        std::cout << "The server will randomly generate a 4 digit code using values between 1-5." << std::endl;
+        std::cout << "You have 8 guesses to correctly guess the code. After each guess, the" << std::endl;
+        std::cout << "server will tell you how many perfect matches (correct number in correct slot)" << std::endl;
+        std::cout << "and matches out of position (correct number in incorrect slot) there are." << std::endl;
+        std::cout << "Good luck!" << std::endl;
+        return true;
+    }
+    // Disconnects the client from the server and closes the socket when 'DISCONNECT' is typed
     else if (input == "DISCONNECT")
     {
         disconnectRPC(sock);
         close(sock);
         return false;
     }
+    // Displays the total wins/losses on the server when 'RECORDS' is typed
     else if (input == "RECORDS")
     {
         recordRPC(sock);
         return true;
     }
+    // Starts a new game on the server when 'START' is typed
     else if (input == "START")
     {
         startGameRPC(sock);
@@ -258,6 +268,7 @@ bool RPCSelector(int sock)
         }
         return true;
     }
+    // The input was not recognized
     else
     {
         std::cout << "Invalid input. Please enter a RPC or 'HELP'." << std::endl;
@@ -277,23 +288,14 @@ int main()
     bool cont = true;
 
     int connected = connectRPC(sock);
-
     if(connected == -1){
         cont = false;   //failed connection (likely server down), so terminate now
     }
 
+    // Keep taking user input until disconnect is called
     while (cont)
     {
         cont = RPCSelector(sock);
     }
-
-    /*
-    startGameRPC(sock);
-    for(int i = 0; i < 8; i++){
-        guessRPC(sock);
-    }
-    recordRPC(sock);
-    disconnectRPC(sock);
-    */
     return 0;
 }
