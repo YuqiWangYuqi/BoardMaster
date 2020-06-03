@@ -96,6 +96,8 @@ void BoardMasterGame::makeGuess(char *guess, int size) {
 void BoardMasterGame::startResetGame() {
     movesRemaining = 8;
     gameInProgress = true;
+    gameLost = false;
+    gameWon = false;
     srand(time(NULL));
     for(int i = 0; i < CODELENGTH; i++){
         currCode[i] = VALIDGUESSCHARS[rand() % VALIDCHARSETSIZE];
@@ -120,14 +122,14 @@ bool BoardMasterGame::isGameWon() {
 /**
  * @return the total number of games lost
  */
-bool BoardMasterGame::getTotalGamesLost() {
+int BoardMasterGame::getTotalGamesLost() {
     return totalGamesLost;
 }
 
 /**
  * @return the total number of games won
  */
-bool BoardMasterGame::getTotalGamesWon() {
+int BoardMasterGame::getTotalGamesWon() {
     return totalGamesWon;
 }
 
