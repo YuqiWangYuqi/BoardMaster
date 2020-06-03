@@ -110,6 +110,7 @@ int startGameRPC(int& sock)
     std::cout << "Start game sent\n";
     valRead = read(sock, buffer, 1024);
     printf(buffer);
+    std::cout << valRead << std::endl;
     return 0;
 
 }
@@ -128,6 +129,8 @@ int guessRPC(int& sock)
     std::cout << "Guess sent\n";
     valRead = read(sock, buffer, 1024);
     printf(buffer);
+    std::cout << valRead << std::endl;
+
     return 0;
 }
 
@@ -142,20 +145,77 @@ int recordRPC(int& sock)
     std::cout << "Record request sent\n";
     valRead = read(sock, buffer, 1024);
     printf(buffer);
+    std::cout << valRead << std::endl;
+
     return 0;
+}
+
+bool RPCSelector(int sock)
+{
+    // returns true for all commands except disconnect
+    std::string input;
+
+    std::cout << "Please enter the desired RPC. Type 'HELP' to show options." << std::endl;
+    std::cin >> input;
+    if (input == "HELP") {
+        std::cout << "RPCs:" << std::endl;
+        // std::cout << "'Connect': Connects to the server." << std::endl;
+        std::cout << "'Disconnect': Disconnects from the server." << std::endl;
+        std::cout << "'Records': Displays total wins/losses on the server." << std::endl;
+        std::cout << "'Start': Start a new game." << std::endl;
+        return true;
+    }
+    /*else if (input == "Connect") 
+    {
+        connectRPC(sock);
+        return true;
+    }*/
+    else if (input == "Disconnect") 
+    {
+        disconnectRPC(sock);
+        close(sock);
+        return false;
+    }
+    else if (input == "Records") 
+    {
+        recordRPC(sock);
+        return true;
+    }
+    else if (input == "Start") 
+    {
+        startGameRPC(sock);
+        for(int i = 0; i < 8; i++)
+        {
+            guessRPC(sock);
+        }
+        return true;
+    }
+    else 
+    {
+        std::cout << "Invalid input. Please enter a RPC or 'HELP'." << std::endl;
+        return true;
+    }
 }
 
 int main()
 {
     int sock = 0;
-    int random = rand() % 10 + 1;
+    // boolean for whether to continue asking for input
+    bool cont = true;
+
     connectRPC(sock);
+    while (cont) 
+    {
+        cont = RPCSelector(sock);
+    }
+
+    /*
     startGameRPC(sock);
     for(int i = 0; i < 8; i++){
         guessRPC(sock);
     }
     recordRPC(sock);
     disconnectRPC(sock);
-    close(sock);
+    */
     return 0;
 }
