@@ -34,6 +34,7 @@ int connectToServer(int & sock)
     }
     return 0;
 }
+
 int connectRPC(int & sock)
 {
     // Input Arguments are:
@@ -154,9 +155,14 @@ bool RPCSelector(int sock)
 {
     // returns true for all commands except disconnect
     std::string input;
-
     std::cout << "Please enter the desired RPC. Type 'HELP' to show options." << std::endl;
     std::cin >> input;
+
+    //sets input to uppercase regardless of user input
+    for(int i = 0; i < input.length(); i++){
+        input[i] = std::toupper(input[i]);
+    }
+
     if (input == "HELP") {
         std::cout << "RPCs:" << std::endl;
         // std::cout << "'Connect': Connects to the server." << std::endl;
@@ -165,23 +171,23 @@ bool RPCSelector(int sock)
         std::cout << "'Start': Start a new game." << std::endl;
         return true;
     }
-    /*else if (input == "Connect") 
-    {
-        connectRPC(sock);
-        return true;
-    }*/
-    else if (input == "Disconnect") 
+        /*else if (input == "Connect")
+        {
+            connectRPC(sock);
+            return true;
+        }*/
+    else if (input == "Disconnect")
     {
         disconnectRPC(sock);
         close(sock);
         return false;
     }
-    else if (input == "Records") 
+    else if (input == "Records")
     {
         recordRPC(sock);
         return true;
     }
-    else if (input == "Start") 
+    else if (input == "Start")
     {
         startGameRPC(sock);
         for(int i = 0; i < 8; i++)
@@ -190,7 +196,7 @@ bool RPCSelector(int sock)
         }
         return true;
     }
-    else 
+    else
     {
         std::cout << "Invalid input. Please enter a RPC or 'HELP'." << std::endl;
         return true;
@@ -204,7 +210,7 @@ int main()
     bool cont = true;
 
     connectRPC(sock);
-    while (cont) 
+    while (cont)
     {
         cont = RPCSelector(sock);
     }
