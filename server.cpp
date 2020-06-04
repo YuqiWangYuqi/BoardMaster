@@ -1,6 +1,6 @@
 /* Yuqi Wang, Nathaniel Wu, Dominic Rosato
  * CPSC5042 2020
- * Milestone 1
+ * Milestone 2
  */
 
 #include <unistd.h>
@@ -11,13 +11,26 @@
 #include <string.h>
 #include <iostream>
 #include "assert.h"
+#include <pthread.h>
 #include "BoardMasterGame.h"
 
 using namespace std;
 
 #define PORT 12121
 
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
 char * checkLogin(char *, char *, char *);
+
+/**
+ * Structure to store global data on wins and losses. Should only be accessed with mutex locks
+ */
+struct GlobalScores{
+    int allWins, allLosses = 0;
+};
+
+GlobalScores allScores;
+
 
 class KeyValue {
 private:
@@ -93,6 +106,8 @@ public:
     }
 };
 
+
+
 /**
  * Initially sets up the server to be used in the remainder of the main program.
  * @param address
@@ -154,6 +169,211 @@ char * checkLogin(char * response, char * username, char * password) {
     }
     return response;
 }
+/**
+ * Method for handling a connect RPC. Checks login and username using the checkLogin method. Also sends the message
+ * to the client on status
+ * @param new_socket the socket being connected to
+ * @param buff the RawKeyValueString containing the commands
+ * @return true if success, false if failure
+ */
+bool connectRPC(int new_socket, RawKeyValueString * buff){
+    KeyValue rpcKeyValue;   //initialize KeyValue for rpc
+    KeyValue userKeyValue;  //initialize KeyValue for username
+    KeyValue passKeyValue;  //initialize KeyValue for password
+    char response [1024];
+    buff->getNextKeyValue(rpcKeyValue);
+
+    //check to make sure the call is for an rpc=connect
+    const char * rpc = rpcKeyValue.getKey();
+    const char * value = rpcKeyValue.getValue();
+    if((strcmp(rpc, "rpc") != 0)|| strcmp(value, "connect") != 0){
+        printf("RPC sent is not a connect\n");
+        return false;
+    }
+
+    buff->getNextKeyValue(userKeyValue);
+    char *pszUserValue = userKeyValue.getValue();
+    std::cout << pszUserValue << std::endl;
+
+    buff->getNextKeyValue(passKeyValue);
+    char *pszPassValue = passKeyValue.getValue();
+    std::cout << pszPassValue << std::endl;
+
+    // Attempt checkLogin, retrieve validation result (0 / -1)
+    strcpy(response, checkLogin(response, pszUserValue, pszPassValue));
+
+    send(new_socket, response, strlen(response), 0);    //sends result to server
+
+    printf("Response message sent\n");
+    if(strcmp(response, "-1") == 0){
+        return false;
+    } else {
+        return true;
+    }
+}
+/**
+ * Method to disconnect a connection. Sends a message to client that they have been disconnected afterwards
+ * @param new_socket the socket to return information to
+ * @return false on completion of disconnect
+ */
+bool disconnectRPC(int new_socket){
+    printf("Disconnect RPC received\n");
+    return false;
+}
+
+/**
+ * Method for starting or resetting a game. Sends a message to client that a new game has started. Will stop an existing
+ * game in progress and reset it without logging a win or loss.
+ * @param new_socket the socket to return information to
+ * @param game the BoardMasterGame that handles the game logic
+ * @return true on successful restart
+ */
+bool startRPC(int new_socket, BoardMasterGame & game){
+    game.startResetGame();
+    const char * start= "New game started!\n";
+    send(new_socket, start, strlen(start), 0);
+    return true;
+}
+
+/**
+ * Method to make a guess on an existing BoardMasterGame object. Sends a response back to the client on state
+ * of the guess being made
+ * @param new_socket the socket being communicated with
+ * @param buff the RawKeyValueString containing the guess
+ * @param game the BoardMasterGame object containing the state of the
+ * @return true on successful guess, false if error occurs
+ */
+bool guessRPC(int new_socket, RawKeyValueString * buff, BoardMasterGame & game) {
+    const char *state;
+
+    if (game.getMovesLeft() == 0) {
+        state = "No moves remaining. Please start a new game.\n";
+        send(new_socket, state, strlen(state), 0);
+    }
+
+    KeyValue code;
+    buff->getNextKeyValue(code);
+    char *guess = code.getValue();
+
+    if (!game.isValidGuess(guess, strlen(guess))) {
+        state = "Invalid guess. All guesses must be 4 digits from 1 to 5.\n";
+        send(new_socket, state, strlen(state), 0);
+    } else {
+        //make a guess and determine results to send back
+        game.makeGuess(guess, strlen(guess));
+        if (game.isGameWon()) {
+            state = "Perfect guess! You've won the game!\n";
+            //accessing a global variable, so mutex lock it
+            pthread_mutex_lock(&mutex);
+            allScores.allWins++;
+            pthread_mutex_unlock(&mutex);
+            send(new_socket, state, strlen(state), 0);
+        } else {
+            string guessStatus = "\nPerfect matches: ";
+            guessStatus += std::to_string(game.getPerfMatches());
+            guessStatus += "\nMatches out of position: ";
+            guessStatus += std::to_string(game.getCharMatches());
+            guessStatus += "\nGuesses remaining: ";
+            guessStatus += std::to_string(game.getMovesLeft());
+            guessStatus += "\n";
+            //check if this was the last move
+            if (game.isGameLost()) {
+                guessStatus += "Sorry, you have lost the game.\n";
+                //accessing a global variable, so mutex lock it
+                pthread_mutex_lock(&mutex);
+                allScores.allLosses++;
+                pthread_mutex_unlock(&mutex);
+            }
+            state = guessStatus.c_str();
+            send(new_socket, state, strlen(state), 0);
+        }
+    }
+    return true;
+}
+
+/**
+ * Method that returns the current log of wins and losses on the current session.
+ * @param new_socket the socket to send the information to
+ * @param game the BoardMasterGame object keeping track of wins and losses
+ * @return true on successful send
+ */
+bool recordRPC(int new_socket, BoardMasterGame & game){
+    const char * scores;
+    string totalScores = "Total wins: ";
+    totalScores += std::to_string(game.getTotalGamesWon());
+    totalScores += " Total losses: ";
+    totalScores += std::to_string(game.getTotalGamesLost());
+    totalScores += "\n";
+    scores = totalScores.c_str();
+    send(new_socket, scores, strlen(scores), 0);
+    return true;
+}
+
+/**
+ * Method for determining which RPC function to use. Passes relevant objects needed to the method for use and returns
+ * their results
+ * @param new_socket the socket to have information returned to
+ * @param buff the RawKeyValueString containing the RPC information
+ * @param game the BoardMasterGame containing the game-state and logic
+ * @return true on successful handling of RPC that doesn't involve disconnect, false for an incorrect RPC or disconnect
+ * RPC sent (should signal to main to close the socket)
+ */
+bool handleRPC(int new_socket, RawKeyValueString * buff, BoardMasterGame & game){
+    KeyValue rpcKeyValue;
+    buff->getNextKeyValue(rpcKeyValue);
+    const char * key = rpcKeyValue.getKey();
+    const char * value = rpcKeyValue.getValue();
+
+    if(strcmp(key, "rpc") != 0){
+        printf("RPC not issued\n");
+        return false;
+    }
+
+    if(strcmp(value, "disconnect") == 0){
+        return disconnectRPC(new_socket);
+    } else if(strcmp(value, "start") == 0){
+        return startRPC(new_socket, game);
+    } else if(strcmp(value, "guess") == 0){
+        return guessRPC(new_socket, buff ,game);
+    } else if(strcmp(value, "record") == 0){
+        return recordRPC(new_socket, game);
+    } else {
+        printf("Invalid RPC issued\n");
+        return false;
+    }
+}
+
+/**
+ * Method for a single threaded session with a client. Will be called by the main method each time a new user connects
+ * so that multiple users can exist on the system at the same time.
+ * @param socket the socket to send and receive information from
+ * @return 0 once the session has ended and the thread has been closed
+ */
+void * session(void * socket){
+    int new_socket = *(int *) socket;
+    char buffer [1024];
+    bool status = false;
+
+    //generate BoardMasterGame object, read buffer and use for connect RPC (must come first!)
+    BoardMasterGame game;
+    read(new_socket, buffer, 1024);
+    RawKeyValueString * buff = new RawKeyValueString(buffer);
+
+    status = connectRPC(new_socket, buff);  //true if successful connection, false if invalid info
+
+    delete buff;
+
+    while(status == true){
+        read(new_socket, buffer, 1024);
+        RawKeyValueString * buff = new RawKeyValueString(buffer);
+        status = handleRPC(new_socket, buff, game);
+        delete buff;
+    }
+    const char * disconnectMessage = "You have been disconnected.";
+    send(new_socket, disconnectMessage, strlen(disconnectMessage), 0);
+    close(new_socket);
+    return 0;
+}
 
 
 /**
@@ -168,118 +388,15 @@ int main(int argc, char const *argv[]) {
     setup(address, server_fd);
     int addrlen = sizeof(address);
 
-    //establish buffer and KeyValue objects for reading RPCs
-    char buffer[1024] = { 0 }, response[1024];
-    RawKeyValueString *pRawKey;
-    KeyValue rpcKeyValue;
-    char *pRpcKey;
-    char *pRpcValue;
-    int status = 0;
 
-    do {
-        printf("Waiting for client\n");
+    while(true){
+        printf("Waiting for a new client\n");
         if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0){
             perror("Accepting denied");
             exit(EXIT_FAILURE);
         }
         printf("Accepted\n");
-        BoardMasterGame game;
-        do {
-            KeyValue userKeyValue;
-            KeyValue passKeyValue;
-
-            char *pszUserValue;
-            char *pszPassValue;
-            read(new_socket, buffer, 1024);
-            pRawKey = new RawKeyValueString(buffer);
-            pRawKey->getNextKeyValue(rpcKeyValue);
-            pRpcKey = rpcKeyValue.getKey();
-            pRpcValue = rpcKeyValue.getValue();
-
-            if (strcmp(pRpcKey, "rpc") == 0) {
-                if (strcmp(pRpcValue, "connect") == 0) {
-                    // Get the next two arguments (user and password);
-
-                    pRawKey->getNextKeyValue(userKeyValue);
-                    pszUserValue = userKeyValue.getValue();
-
-                    pRawKey->getNextKeyValue(passKeyValue);
-                    pszPassValue = passKeyValue.getValue();
-
-                    // Attempt checkLogin, retrieve validation result (0 / -1)
-                    strcpy(response, checkLogin(response, pszUserValue, pszPassValue));
-
-                    send(new_socket, response, strlen(response), 0);
-                    printf("Response message sent\n");
-                    if(strcmp(response, "-1") == 0){
-                        status = false;
-                    } else {
-                        status = true;
-                    }
-                } else if (strcmp(pRpcValue, "disconnect") == 0) {
-                    printf("Disconnect RPC received\n");
-                    const char * disconnect = "You have been disconnected.\n";
-                    send(new_socket, disconnect, strlen(disconnect), 0);
-                    status = false;
-                } else if(strcmp(pRpcValue, "start") == 0){
-                    game.startResetGame();
-                    const char * start= "New game started!\n";
-                    send(new_socket, start, strlen(start), 0);
-                } else if(strcmp(pRpcValue, "guess") == 0){
-                    const char * state;
-
-                    if(game.getMovesLeft() == 0){
-                        state = "No moves remaining. Please start a new game.\n";
-                        send(new_socket, state, strlen(state), 0);
-                    }
-
-                    KeyValue code;
-                    pRawKey->getNextKeyValue(code);
-                    char * guess =code.getValue();
-
-                    if(!game.isValidGuess(guess, strlen(guess))){
-                        state = "Invalid guess. All guesses must be 4 digits from 1 to 5.\n";
-                        send(new_socket, state, strlen(state), 0);
-                    } else {
-                        //make a guess and determine results to send back
-                        game.makeGuess(guess, strlen(guess));
-                        if(game.isGameWon()){
-                            state = "Perfect guess! You've won the game!\n";
-                            send(new_socket, state, strlen(state), 0);
-                        } else{
-                            string guessStatus = "\nPerfect matches: ";
-                            guessStatus += std::to_string(game.getPerfMatches());
-                            guessStatus += "\nMatches out of position: ";
-                            guessStatus += std::to_string(game.getCharMatches());
-                            guessStatus += "\nGuesses remaining: ";
-                            guessStatus += std::to_string(game.getMovesLeft());
-                            guessStatus += "\n";
-                            //check if this was the last move
-                            if(game.isGameLost()){
-                                guessStatus += "Sorry, you have lost the game.\n";
-                            }
-                            state = guessStatus.c_str();
-                            send(new_socket, state, strlen(state), 0);
-                        }
-                    }
-
-
-                } else if(strcmp(pRpcValue, "record") == 0){
-                    const char * scores;
-                    string totalScores = "Total wins: ";
-                    totalScores += std::to_string(game.getTotalGamesWon());
-                    totalScores += " Total losses: ";
-                    totalScores += std::to_string(game.getTotalGamesLost());
-                    totalScores += "\n";
-                    scores = totalScores.c_str();
-                    send(new_socket, scores, strlen(scores), 0);
-                }
-                else {
-                    printf("Invalid RPC: %s\n", pRpcValue);
-                    status = 0;
-                }
-            }
-            delete pRawKey;
-        } while (status == 1);
-    } while (true);
+        pthread_t ses;
+        pthread_create(&ses, NULL, session, &new_socket);
+    }
 }
