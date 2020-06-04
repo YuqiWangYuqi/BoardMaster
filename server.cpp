@@ -309,6 +309,23 @@ bool recordRPC(int new_socket, BoardMasterGame & game){
     return true;
 }
 
+bool globalRecordRPC(int new_socket){
+    const char * scores;
+    string globalScores = "Global wins on this server: ";
+
+    //accessing (but not updating) global values, so mutex lock for safety
+    pthread_mutex_lock(&mutex);
+    globalScores += std::to_string(allScores.allWins);
+    globalScores += " Global losses on this server: ";
+    globalScores += std::to_string(allScores.allLosses);
+    globalScores += "\n";
+    pthread_mutex_unlock(&mutex);
+
+    scores = globalScores.c_str();
+    send(new_socket, scores, strlen(scores), 0);
+    return true;
+}
+
 /**
  * Method for determining which RPC function to use. Passes relevant objects needed to the method for use and returns
  * their results
@@ -337,6 +354,8 @@ bool handleRPC(int new_socket, RawKeyValueString * buff, BoardMasterGame & game)
         return guessRPC(new_socket, buff ,game);
     } else if(strcmp(value, "record") == 0){
         return recordRPC(new_socket, game);
+    } else if(strcmp(value, "globalrecord") == 0){
+        return globalRecordRPC(new_socket);
     } else {
         printf("Invalid RPC issued\n");
         return false;
