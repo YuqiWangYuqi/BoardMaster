@@ -150,9 +150,9 @@ int startGameRPC(int& sock)
 
 /**
  * Method used to make a guess to the server on a running BoardMaster game. Will ask the user for input on their guess.
- * The guess will be sent and results will be printed back.
+ * The guess will be sent and results will be printed back. 
  * @param sock the socket to send the information to
- * @return 0 on success
+ * @return 1 on game win, -1 on invalid guess, otherwise return 0
  */
 int guessRPC(int& sock)
 {
@@ -180,11 +180,17 @@ int guessRPC(int& sock)
     read(sock, buffer, 1024);
     printf(buffer);
 
-    // return 1 if solved, else return 0 (determines if the user gets more guesses)
+    // return 1 if solved
     if (strcmp(buffer, "Perfect guess! You've won the game!\n") == 0)
     {
         return 1;
     }
+    // return -1 if it is an invalid guess
+    else if (strcmp(buffer, "Invalid guess. All guesses must be 4 digits from 1 to 5.\n") == 0) 
+    {
+        return -1;
+    }
+    // else return 0 (determines if the user gets more guesses)
     return 0;
 }
 
@@ -251,7 +257,7 @@ bool RPCSelector(int sock)
         std::cout << "'DISCONNECT': Disconnects from the server." << std::endl;
         return true;
     }
-        // Displays the rules for the game when 'RULES' is typed
+    // Displays the rules for the game when 'RULES' is typed
     else if (input == "RULES")
     {
         std::cout << "\nThe server will randomly generate a 4 digit code using values between 1-5." << std::endl;
@@ -261,38 +267,44 @@ bool RPCSelector(int sock)
         std::cout << "Good luck!" << std::endl;
         return true;
     }
-        // Disconnects the client from the server and closes the socket when 'DISCONNECT' is typed
+    // Disconnects the client from the server and closes the socket when 'DISCONNECT' is typed
     else if (input == "DISCONNECT")
     {
         disconnectRPC(sock);
         close(sock);
         return false;
     }
-        // Displays the total wins/losses on the server when 'RECORDS' is typed
+    // Displays the wins/losses for this session when 'RECORDS' is typed
     else if (input == "RECORDS")
     {
         recordRPC(sock);
         return true;
     }
+    // Displays the total wins/losses for the entire server when 'GLOBALRECORDS' is typed
     else if (input == "GLOBALRECORDS")
     {
         globalRecordRPC(sock);
         return true;
     }
-        // Starts a new game on the server when 'START' is typed
+    // Starts a new game on the server when 'START' is typed
     else if (input == "START")
     {
         startGameRPC(sock);
         for(int i = 0; i < 8; i++)
         {
-            if (guessRPC(sock) == 1)
+            int response = guessRPC(sock);
+            if (response == 1) // if it returns 1, game is won!
             {
                 break;
+            }
+            else if (response == -1) // if it returns -1, it was an invalid guess
+            {
+                i++;
             }
         }
         return true;
     }
-        // The input was not recognized
+    // The input was not recognized
     else
     {
         std::cout << "\nInvalid input. Please enter a RPC or 'HELP'.\n" << std::endl;
