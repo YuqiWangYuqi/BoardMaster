@@ -346,15 +346,29 @@ bool handleRPC(int new_socket, RawKeyValueString * buff, BoardMasterGame & game)
         return false;
     }
 
-    if(strcmp(value, "disconnect") == 0){
+    if(strcmp(value, "disconnect") == 0)
+    {
+        printf("Disconnect RPC received from socket %d\n", new_socket);
         return disconnectRPC(new_socket);
-    } else if(strcmp(value, "start") == 0){
+    }
+    else if(strcmp(value, "start") == 0)
+    {
+        printf("Game start RPC received from socket %d\n", new_socket);
         return startRPC(new_socket, game);
-    } else if(strcmp(value, "guess") == 0){
+    }
+    else if(strcmp(value, "guess") == 0)
+    {
+        printf("Guess RPC received from socket %d\n", new_socket);
         return guessRPC(new_socket, buff ,game);
-    } else if(strcmp(value, "record") == 0){
+    }
+    else if(strcmp(value, "record") == 0)
+    {
+        printf("Local record RPC received from socket %d\n", new_socket);
         return recordRPC(new_socket, game);
-    } else if(strcmp(value, "globalrecord") == 0){
+    }
+    else if(strcmp(value, "globalrecord") == 0)
+    {
+        printf("Global record RPC received from socket %d\n", new_socket);
         return globalRecordRPC(new_socket);
     } else {
         printf("Invalid RPC issued\n");
@@ -414,7 +428,7 @@ int main(int argc, char const *argv[]) {
             perror("Accepting denied");
             exit(EXIT_FAILURE);
         }
-        printf("Accepted\n");
+        printf("Accepted new connection at socket %d\n", new_socket);
         pthread_t ses;
         pthread_create(&ses, NULL, session, &new_socket);
     }
