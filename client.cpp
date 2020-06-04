@@ -27,7 +27,7 @@ int connectToServer(int & sock)
         printf("\n Socket creation error \n");
         return -1;
     }
-    
+
     // Interpret server address
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(PORT);
@@ -172,7 +172,7 @@ int guessRPC(int& sock)
         return 1;
     }
 
-    // assemble the guess RPC and send it to the server 
+    // assemble the guess RPC and send it to the server
     guess += (code + ";");
     char buffer[1024] = {0};
     send(sock, guess.c_str(), strlen(guess.c_str()) , 0);
@@ -195,12 +195,30 @@ int guessRPC(int& sock)
  */
 int recordRPC(int& sock)
 {
-    //input format="rpc=record"
+    //input format="rpc=record;"
     //output format="Total wins:<number> Total losses: <number>"
     char buffer[1024] = {0};
     const char * record = "rpc=record;";
     send(sock, record, strlen(record), 0);
-    std::cout << "Record request sent\n" << std::endl;
+    std::cout << "Local record request sent\n" << std::endl;
+    read(sock, buffer, 1024);
+    printf(buffer);
+    return 0;
+}
+
+/**
+ * Method used to get a record of wins and losses from the server. Will send the command and print the results.
+ * @param sock the socket to send the request to
+ * @return 0 on success
+ */
+int globalRecordRPC(int& sock)
+{
+    //input format="rpc=globalrecord;"
+    //output format="Global wins on the server:<number> Global losses on the server: <number>"
+    char buffer[1024] = {0};
+    const char * record = "rpc=globalrecord;";
+    send(sock, record, strlen(record), 0);
+    std::cout << "Global record request sent\n" << std::endl;
     read(sock, buffer, 1024);
     printf(buffer);
     return 0;
@@ -228,12 +246,13 @@ bool RPCSelector(int sock)
         std::cout << "\nRPCs (case insensitive):" << std::endl;
         std::cout << "'START': Start a new game. You can type 'QUIT' to exit during a game." << std::endl;
         std::cout << "'RULES': Display the rules for the game." << std::endl;
-        std::cout << "'RECORDS': Displays total wins/losses on the server." << std::endl;
+        std::cout << "'RECORDS': Displays total wins/losses in the current session." << std::endl;
+        std::cout << "'GLOBALRECORDS': Displays total wins/losses on the server." << std::endl;
         std::cout << "'DISCONNECT': Disconnects from the server." << std::endl;
         return true;
     }
-    // Displays the rules for the game when 'RULES' is typed
-    else if (input == "RULES") 
+        // Displays the rules for the game when 'RULES' is typed
+    else if (input == "RULES")
     {
         std::cout << "\nThe server will randomly generate a 4 digit code using values between 1-5." << std::endl;
         std::cout << "You have 8 guesses to correctly guess the code. After each guess, the" << std::endl;
@@ -242,33 +261,38 @@ bool RPCSelector(int sock)
         std::cout << "Good luck!" << std::endl;
         return true;
     }
-    // Disconnects the client from the server and closes the socket when 'DISCONNECT' is typed
+        // Disconnects the client from the server and closes the socket when 'DISCONNECT' is typed
     else if (input == "DISCONNECT")
     {
         disconnectRPC(sock);
         close(sock);
         return false;
     }
-    // Displays the total wins/losses on the server when 'RECORDS' is typed
+        // Displays the total wins/losses on the server when 'RECORDS' is typed
     else if (input == "RECORDS")
     {
         recordRPC(sock);
         return true;
     }
-    // Starts a new game on the server when 'START' is typed
+    else if (input == "GLOBALRECORDS")
+    {
+        globalRecordRPC(sock);
+        return true;
+    }
+        // Starts a new game on the server when 'START' is typed
     else if (input == "START")
     {
         startGameRPC(sock);
         for(int i = 0; i < 8; i++)
         {
-            if (guessRPC(sock) == 1) 
+            if (guessRPC(sock) == 1)
             {
                 break;
             }
         }
         return true;
     }
-    // The input was not recognized
+        // The input was not recognized
     else
     {
         std::cout << "\nInvalid input. Please enter a RPC or 'HELP'.\n" << std::endl;
