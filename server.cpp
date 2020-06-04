@@ -19,6 +19,8 @@ using namespace std;
 #define PORT 12121
 
 char * checkLogin(char *, char *, char *);
+int totalWin = 0;
+int totalLoss = 0;
 
 class KeyValue {
 private:
@@ -250,6 +252,7 @@ bool guessRPC(int new_socket, RawKeyValueString * buff, BoardMasterGame & game) 
         if (game.isGameWon()) {
             state = "Perfect guess! You've won the game!\n";
             send(new_socket, state, strlen(state), 0);
+            totalWin++;
         } else {
             string guessStatus = "\nPerfect matches: ";
             guessStatus += std::to_string(game.getPerfMatches());
@@ -260,6 +263,7 @@ bool guessRPC(int new_socket, RawKeyValueString * buff, BoardMasterGame & game) 
             guessStatus += "\n";
             //check if this was the last move
             if (game.isGameLost()) {
+                totalLoss++;
                 guessStatus += "Sorry, you have lost the game.\n";
             }
             state = guessStatus.c_str();
@@ -278,9 +282,9 @@ bool guessRPC(int new_socket, RawKeyValueString * buff, BoardMasterGame & game) 
 bool recordRPC(int new_socket, BoardMasterGame & game){
     const char * scores;
     string totalScores = "Total wins: ";
-    totalScores += std::to_string(game.getTotalGamesWon());
+    totalScores += std::to_string(totalWin);
     totalScores += " Total losses: ";
-    totalScores += std::to_string(game.getTotalGamesLost());
+    totalScores += std::to_string(totalLoss);
     totalScores += "\n";
     scores = totalScores.c_str();
     send(new_socket, scores, strlen(scores), 0);

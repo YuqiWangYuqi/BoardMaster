@@ -151,5 +151,3 @@ int BoardMasterGame::getPerfMatches() {
 int BoardMasterGame::getMovesLeft() {
     return movesRemaining;
 }
-
-
